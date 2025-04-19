@@ -114,6 +114,60 @@ class ReaderWebtoonViewController: ZoomableCollectionViewController {
         alert.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .cancel))
         present(alert, animated: true)
     }
+
+    func preloadUpscaledPage(_ page: Int) async -> Bool {
+        // Ensure we have a chapter and the page is valid
+        guard let chapter = chapter,
+              let chapterIndex = chapters.firstIndex(of: chapter),
+              let currentPages = pages[safe: chapterIndex],
+              page > 0,
+              page <= viewModel.pages.count,
+              UserDefaults.standard.bool(forKey: "Reader.upscaleImages") else {
+            return false
+        }
+        
+        // Adjust for info page at the beginning if present
+        let hasStartInfo = currentPages.first?.type != .imagePage
+        let adjustedIndex = page + (hasStartInfo ? 0 : -1)
+        
+        // Ensure the adjusted index is valid
+        guard adjustedIndex >= 0, adjustedIndex < currentPages.count else {
+            return false
+        }
+        
+        // Get the page
+        let readerPage = currentPages[adjustedIndex]
+        
+        // Only process image pages
+        guard readerPage.type == .imagePage else {
+            return false
+        }
+        
+        // Get image for upscaling
+        guard let url = readerPage.imageURL, 
+              let data = try? await viewModel.getImageData(from: url, chapter: chapter) else {
+            return false
+        }
+        
+        // Create UIImage from data
+        guard let image = UIImage(data: data) else {
+            return false
+        }
+        
+        // Get configuration for upscaling
+        let noiseLevel = UserDefaults.standard.integer(forKey: "Reader.upscaleNoiseLevel")
+        let noiseReductionLevel = NoiseReductionLevel(rawValue: noiseLevel) ?? .none
+        
+        // Request background preload from UpscalerService
+        UpscalerService.shared.preloadUpscale(
+            image,
+            modelType: .waifu2x,
+            factor: .x2,
+            noiseLevel: noiseReductionLevel
+        )
+        
+        return true
+    }
 }
 
 // MARK: - Scroll View Delegate
@@ -184,7 +238,7 @@ extension ReaderWebtoonViewController {
     // fix content size when rotating
     // TODO: fix scroll offset when rotating
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
-        super.viewWillTransition(to: size, with: coordinator)
+        super.viewWillTransition(to: size, with coordinator)
         coordinator.animate { _ in
             self.zoomView.adjustContentSize()
         }

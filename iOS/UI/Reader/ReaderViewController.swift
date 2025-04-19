@@ -173,6 +173,16 @@ class ReaderViewController: BaseObservingViewController {
             guard let self = self else { return }
             self.reader?.setChapter(self.chapter, startPage: self.currentPage)
         }
+        addObserver(forName: "Reader.upscaleImages") { [weak self] _ in
+            guard let self = self else { return }
+            self.reader?.setChapter(self.chapter, startPage: self.currentPage)
+        }
+        addObserver(forName: "Reader.upscaleNoiseLevel") { [weak self] _ in
+            guard let self = self else { return }
+            if UserDefaults.standard.bool(forKey: "Reader.upscaleImages") {
+                self.reader?.setChapter(self.chapter, startPage: self.currentPage)
+            }
+        }
         addObserver(forName: UIScene.willDeactivateNotification) { [weak self] _ in
             guard let self = self else { return }
             self.updateReadPosition()
@@ -471,6 +481,10 @@ extension ReaderViewController: ReaderHoldingDelegate {
         currentPage = page
         toolbarView.currentPage = page
         toolbarView.updateSliderPosition()
+        
+        // Trigger preloading of upscaled images for upcoming pages
+        preloadUpscaledImages(currentPage: page, totalPages: toolbarView.totalPages ?? page)
+        
         if page == toolbarView.totalPages {
             setCompleted()
         }
@@ -548,6 +562,56 @@ extension ReaderViewController {
                 }
             } completion: { _ in
                 navigationController.toolbar.isHidden = true
+            }
+        }
+    }
+}
+
+// MARK: - Image Upscaling
+extension ReaderViewController {
+    
+    /// Preload upscaled versions of upcoming pages
+    /// - Parameters:
+    ///   - currentPage: The current page being viewed
+    ///   - totalPages: Total number of pages in the chapter
+    func preloadUpscaledImages(currentPage: Int, totalPages: Int) {
+        // Only preload if upscaling is enabled
+        guard UserDefaults.standard.bool(forKey: "Reader.upscaleImages") else {
+            return
+        }
+        
+        // Get model configuration
+        let noiseLevel = UserDefaults.standard.integer(forKey: "Reader.upscaleNoiseLevel")
+        let noiseReductionLevel = NoiseReductionLevel(rawValue: noiseLevel) ?? .none
+        
+        // Get number of pages to preload from settings
+        let pagesToPreload = UserDefaults.standard.integer(forKey: "Reader.pagesToPreload")
+        
+        // Determine which pages to preload based on reading mode
+        var pagesToProcess: [Int] = []
+        
+        if readingMode == .rtl {
+            // For right-to-left reading, preload previous pages (which come next)
+            for i in 1...pagesToPreload {
+                let pageToLoad = currentPage - i
+                if pageToLoad > 0 {
+                    pagesToProcess.append(pageToLoad)
+                }
+            }
+        } else {
+            // For other reading modes, preload next pages
+            for i in 1...pagesToPreload {
+                let pageToLoad = currentPage + i
+                if pageToLoad <= totalPages {
+                    pagesToProcess.append(pageToLoad)
+                }
+            }
+        }
+        
+        // Request preloading for the determined pages
+        Task {
+            for page in pagesToProcess {
+                await reader?.preloadUpscaledPage(page)
             }
         }
     }

@@ -118,6 +118,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 "Reader.markDuplicateChapters": true,
                 "Reader.downsampleImages": true,
                 "Reader.cropBorders": false,
+                "Reader.upscaleImages": false,
+                "Reader.upscaleNoiseLevel": 0,
                 "Reader.saveImageOption": true,
                 "Reader.backgroundColor": "black",
                 "Reader.pagesToPreload": 2,

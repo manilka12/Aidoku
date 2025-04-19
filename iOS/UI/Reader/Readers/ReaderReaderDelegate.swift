@@ -16,4 +16,9 @@ protocol ReaderReaderDelegate: UIViewController {
     func sliderMoved(value: CGFloat)
     func sliderStopped(value: CGFloat)
     func setChapter(_ chapter: Chapter, startPage: Int)
+    
+    /// Preload the specified page for upscaling
+    /// - Parameter page: The page number to preload
+    @discardableResult
+    func preloadUpscaledPage(_ page: Int) async -> Bool
 }

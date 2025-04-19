@@ -131,6 +131,14 @@ class ReaderPageView: UIView {
             if UserDefaults.standard.bool(forKey: "Reader.downsampleImages") {
                 processors.append(DownsampleProcessor(width: UIScreen.main.bounds.width))
             }
+            if UserDefaults.standard.bool(forKey: "Reader.upscaleImages") {
+                let noiseLevel = UserDefaults.standard.integer(forKey: "Reader.upscaleNoiseLevel")
+                processors.append(UpscaleProcessor(
+                    modelType: .waifu2x,
+                    factor: .x2,
+                    noiseLevel: NoiseReductionLevel(rawValue: noiseLevel) ?? .none
+                ))
+            }
 
             request = ImageRequest(
                 urlRequest: urlRequest,
@@ -153,15 +161,15 @@ class ReaderPageView: UIView {
                     guard let self else { return }
                     switch result {
                     case .success(let response):
-                        imageView.image = response.image
-                        fixImageSize()
-                        completion?(true)
+                        self.imageView.image = response.image
+                        self.fixImageSize()
+                        self.completion?(true)
                         continuation.resume(returning: true)
                     case .failure:
-                        completion?(false)
+                        self.completion?(false)
                         continuation.resume(returning: false)
                     }
-                    progressView.isHidden = true
+                    self.progressView.isHidden = true
                 }
             )
         }

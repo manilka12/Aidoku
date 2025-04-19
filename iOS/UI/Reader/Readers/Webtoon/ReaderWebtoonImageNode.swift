@@ -216,8 +216,9 @@ extension ReaderWebtoonImageNode {
             if let body = request.body { urlRequest.httpBody = body }
         }
 
-        let shouldDownsample = UserDefaults.standard.bool(forKey: "Reader.downsampleImages")
         let shouldCropBorders = UserDefaults.standard.bool(forKey: "Reader.cropBorders")
+        let shouldDownsample = UserDefaults.standard.bool(forKey: "Reader.downsampleImages")
+        let shouldUpscale = UserDefaults.standard.bool(forKey: "Reader.upscaleImages")
         let width = await UIScreen.main.bounds.width
         var processors: [ImageProcessing] = []
         if shouldCropBorders {
@@ -225,6 +226,14 @@ extension ReaderWebtoonImageNode {
         }
         if shouldDownsample {
             processors.append(DownsampleProcessor(width: width))
+        }
+        if shouldUpscale {
+            let noiseLevel = UserDefaults.standard.integer(forKey: "Reader.upscaleNoiseLevel")
+            processors.append(UpscaleProcessor(
+                modelType: .waifu2x,
+                factor: .x2,
+                noiseLevel: NoiseReductionLevel(rawValue: noiseLevel) ?? .none
+            ))
         }
 
         let request = ImageRequest(
@@ -288,6 +297,18 @@ extension ReaderWebtoonImageNode {
                 }
                 if UserDefaults.standard.bool(forKey: "Reader.downsampleImages") {
                     let processor = DownsampleProcessor(width: UIScreen.main.bounds.width)
+                    let processedImage = processor.process(image)
+                    if let processedImage = processedImage {
+                        image = processedImage
+                    }
+                }
+                if UserDefaults.standard.bool(forKey: "Reader.upscaleImages") {
+                    let noiseLevel = UserDefaults.standard.integer(forKey: "Reader.upscaleNoiseLevel")
+                    let processor = UpscaleProcessor(
+                        modelType: .waifu2x,
+                        factor: .x2,
+                        noiseLevel: NoiseReductionLevel(rawValue: noiseLevel) ?? .none
+                    )
                     let processedImage = processor.process(image)
                     if let processedImage = processedImage {
                         image = processedImage

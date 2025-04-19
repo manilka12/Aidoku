@@ -226,6 +226,45 @@ extension ReaderPagedViewController {
         }
     }
 
+    func preloadUpscaledPage(_ page: Int) async -> Bool {
+        // Ensure we have a chapter and the page is valid
+        guard let chapter = chapter,
+              page > 0,
+              page <= viewModel.pages.count,
+              UserDefaults.standard.bool(forKey: "Reader.upscaleImages") else {
+            return false
+        }
+        
+        // Get the image page
+        let pageIndex = page - 1
+        let readerPage = viewModel.pages[pageIndex]
+        
+        // Get image for upscaling
+        guard let url = readerPage.imageURL, 
+              let data = try? await viewModel.getImageData(from: url, chapter: chapter) else {
+            return false
+        }
+        
+        // Create UIImage from data
+        guard let image = UIImage(data: data) else {
+            return false
+        }
+        
+        // Get configuration for upscaling
+        let noiseLevel = UserDefaults.standard.integer(forKey: "Reader.upscaleNoiseLevel")
+        let noiseReductionLevel = NoiseReductionLevel(rawValue: noiseLevel) ?? .none
+        
+        // Request background preload from UpscalerService
+        UpscalerService.shared.preloadUpscale(
+            image,
+            modelType: .waifu2x,
+            factor: .x2,
+            noiseLevel: noiseReductionLevel
+        )
+        
+        return true
+    }
+
     enum PagePosition {
         case first
         case second

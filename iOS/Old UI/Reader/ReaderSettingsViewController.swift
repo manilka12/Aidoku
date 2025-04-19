@@ -32,6 +32,20 @@ class ReaderSettingsViewController: SettingsTableViewController {
                 title: NSLocalizedString("SKIP_DUPLICATE_CHAPTERS", comment: "")
             ),
             SettingItem(type: "switch", key: "Reader.downsampleImages", title: NSLocalizedString("DOWNSAMPLE_IMAGES", comment: "")),
+            SettingItem(type: "switch", key: "Reader.upscaleImages", title: NSLocalizedString("UPSCALE_IMAGES", comment: "")),
+            SettingItem(
+                type: "select",
+                key: "Reader.upscaleNoiseLevel",
+                title: NSLocalizedString("NOISE_REDUCTION", comment: ""),
+                values: ["0", "1", "2", "3"],
+                titles: [
+                    NSLocalizedString("NONE", comment: ""),
+                    NSLocalizedString("LOW", comment: ""),
+                    NSLocalizedString("MEDIUM", comment: ""),
+                    NSLocalizedString("HIGH", comment: "")
+                ],
+                dependency: ("Reader.upscaleImages", true)
+            ),
             SettingItem(type: "switch", key: "Reader.cropBorders", title: NSLocalizedString("CROP_BORDERS", comment: "")),
             SettingItem(type: "switch", key: "Reader.saveImageOption", title: NSLocalizedString("SAVE_IMAGE_OPTION", comment: "")),
             SettingItem(
