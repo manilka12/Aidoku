@@ -198,6 +198,7 @@ private struct ChapterRow: View {
     let chapter: DownloadedChapterInfo
     let manga: DownloadedMangaInfo
     @State private var upscalingStatus: ChapterUpscalingStatus = .notStarted
+    @State private var refreshTimer: Timer?
 
     var body: some View {
         HStack {
@@ -223,6 +224,10 @@ private struct ChapterRow: View {
         .contentShape(Rectangle())
         .task {
             await loadUpscalingStatus()
+            startPeriodicRefresh()
+        }
+        .onDisappear {
+            stopPeriodicRefresh()
         }
     }
     
@@ -272,6 +277,28 @@ private struct ChapterRow: View {
         await MainActor.run {
             upscalingStatus = status
         }
+    }
+    
+    private func startPeriodicRefresh() {
+        // Only refresh if chapter might be upscaling (not fully complete)
+        guard upscalingStatus != .fullyUpscaled else { return }
+        
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
+            Task {
+                await loadUpscalingStatus()
+                // Stop timer if chapter is now fully upscaled
+                if case .fullyUpscaled = upscalingStatus {
+                    await MainActor.run {
+                        stopPeriodicRefresh()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func stopPeriodicRefresh() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
     }
 
     private func formatChapterSubtitle() -> String? {

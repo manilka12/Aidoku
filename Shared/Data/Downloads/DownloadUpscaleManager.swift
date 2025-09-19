@@ -155,6 +155,8 @@ actor DownloadUpscaleManager {
         
         guard !unupscaledImages.isEmpty else {
             LogManager.logger.info("All images already upscaled in chapter \(chapterKey)")
+            // Mark as complete if all images are already upscaled
+            Self.markChapterAsFullyUpscaled(at: chapterDirectory)
             return
         }
         
@@ -182,10 +184,16 @@ actor DownloadUpscaleManager {
             if failureCount > imageFiles.count / 2 {
                 failedQueue.insert(chapterKey)
             }
-        } else {
-            // Mark chapter as fully upscaled if all images were successful
+        }
+        
+        // Check if ALL images in the chapter are now upscaled (not just current session)
+        let totalUpscaled = imageFiles.count - Self.getUnupscaledImages(in: chapterDirectory).count
+        if totalUpscaled == imageFiles.count {
+            // Mark chapter as fully upscaled if all images are now upscaled
             Self.markChapterAsFullyUpscaled(at: chapterDirectory)
-            LogManager.logger.info("Successfully upscaled all images in chapter \(chapterKey) - marked as complete")
+            LogManager.logger.info("All images in chapter \(chapterKey) are now upscaled - marked as complete")
+        } else {
+            LogManager.logger.info("Chapter \(chapterKey) upscaling session complete: \(totalUpscaled)/\(imageFiles.count) images upscaled")
         }
         
         // Clear retry count on successful completion

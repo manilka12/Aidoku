@@ -18,6 +18,7 @@ struct ChapterTableCell: View {
     var downloadProgress: Float?
     
     @State private var upscalingStatus: ChapterUpscalingStatus = .notStarted
+    @State private var refreshTimer: Timer?
 
     var locked: Bool {
         chapter.locked && !downloaded
@@ -73,7 +74,11 @@ struct ChapterTableCell: View {
         .task {
             if downloaded {
                 await loadUpscalingStatus()
+                startPeriodicRefresh()
             }
+        }
+        .onDisappear {
+            stopPeriodicRefresh()
         }
     }
     
@@ -137,6 +142,28 @@ struct ChapterTableCell: View {
         await MainActor.run {
             upscalingStatus = status
         }
+    }
+    
+    private func startPeriodicRefresh() {
+        // Only refresh if chapter might be upscaling (not fully complete) and is downloaded
+        guard downloaded && upscalingStatus != .fullyUpscaled else { return }
+        
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
+            Task {
+                await loadUpscalingStatus()
+                // Stop timer if chapter is now fully upscaled
+                if case .fullyUpscaled = upscalingStatus {
+                    await MainActor.run {
+                        stopPeriodicRefresh()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func stopPeriodicRefresh() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
     }
 }
 
