@@ -316,7 +316,7 @@ actor DownloadUpscaleManager {
         LogManager.logger.info("Scanning for incomplete upscaling tasks...")
         
         let downloadManager = await MainActor.run { DownloadManager.shared }
-        let downloadedManga = await downloadManager.getDownloadedManga()
+        let downloadedManga = await downloadManager.getAllDownloadedManga()
         
         var incompleteCount = 0
         for mangaInfo in downloadedManga {

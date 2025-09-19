@@ -67,7 +67,8 @@ struct UpscaleProcessor: ImageProcessing {
             return container
         }
         
-        return container.map { _ in upscaledImage }
+        // Create new container with upscaled image (using public API)
+        return ImageContainer(image: upscaledImage)
     }
     
     private func processUpscaling(image: PlatformImage) -> PlatformImage? {
