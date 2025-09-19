@@ -357,12 +357,16 @@ extension MangaDownloadDetailView.ViewModel {
             let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             let outputDirectory = documentsURL.appendingPathComponent("Exported PDFs").appendingPathComponent(manga.displayTitle)
             
+            // Capture manga info to avoid actor isolation issues
+            let mangaSourceId = manga.sourceId
+            let mangaMangaId = manga.mangaId
+            
             // Convert to Chapter objects for PDFExportManager
             let chapterObjects = chaptersToExport.map { chapterInfo in
                 Chapter(
-                    sourceId: manga.sourceId,
+                    sourceId: mangaSourceId,
                     id: chapterInfo.chapterId,
-                    mangaId: manga.mangaId,
+                    mangaId: mangaMangaId,
                     title: chapterInfo.title,
                     sourceOrder: -1
                 )

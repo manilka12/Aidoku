@@ -95,7 +95,7 @@ actor PDFExportManager {
     }
     
     // Get status of export operations
-    nonisolated func isExporting(chapter: Chapter) -> Bool {
+    func isExporting(chapter: Chapter) async -> Bool {
         let chapterKey = "\(chapter.sourceId)_\(chapter.mangaId)_\(chapter.id)"
         return exportingChapters.contains(chapterKey)
     }
@@ -121,16 +121,16 @@ actor PDFExportManager {
     
     private func createPDFPage(from image: UIImage) -> PDFPage? {
         // Create page with image size
-        let pageRect = CGRect(origin: .zero, size: image.size)
+        var pageRect = CGRect(origin: .zero, size: image.size)
         
         // Create graphics context for PDF
         let pdfData = NSMutableData()
         guard let consumer = CGDataConsumer(data: pdfData),
-              let context = CGContext(consumer: consumer, mediaBox: &pageRect.mutableCopy(), nil) else {
+              let context = CGContext(consumer: consumer, mediaBox: &pageRect, nil) else {
             return nil
         }
         
-        context.beginPDFPage(nil)
+        context.beginPDFPage([:])
         
         // Draw image to fill the page
         if let cgImage = image.cgImage {

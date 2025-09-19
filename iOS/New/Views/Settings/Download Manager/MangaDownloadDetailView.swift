@@ -117,7 +117,7 @@ struct MangaDownloadDetailView: View {
                                 Image(systemName: viewModel.selectedChapters.contains(chapter.chapterId) ? 
                                       "checkmark.circle.fill" : "circle")
                                     .foregroundStyle(viewModel.selectedChapters.contains(chapter.chapterId) ? 
-                                                   .tint : .secondary)
+                                                   Color.accentColor : Color.secondary)
                             }
                         }
                         
