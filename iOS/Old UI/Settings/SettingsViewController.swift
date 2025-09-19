@@ -213,6 +213,14 @@ class SettingsViewController: SettingsTableViewController {
                     title: NSLocalizedString("PRESERVE_ORIGINAL_IMAGES", comment: "")
                 ),
                 SettingItem(
+                    type: "stepper",
+                    key: "Downloads.autoUpscaleJPEGQuality",
+                    title: NSLocalizedString("JPEG_QUALITY_SETTING", comment: ""),
+                    minimumValue: 0.60, // 60% quality minimum
+                    maximumValue: 1.00, // 100% quality maximum
+                    stepValue: 0.05 // 5% steps
+                ),
+                SettingItem(
                     type: "switch",
                     key: "Library.refreshMetadata",
                     title: NSLocalizedString("REFRESH_METADATA", comment: "")

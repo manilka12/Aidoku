@@ -24,6 +24,7 @@ actor DownloadUpscaleManager {
     static let autoUpscaleEnabledKey = "Downloads.autoUpscaleEnabled"
     static let autoUpscaleMaxSizeKey = "Downloads.autoUpscaleMaxSize"
     static let autoUpscaleQualityPreservationKey = "Downloads.autoUpscaleQualityPreservation"
+    static let autoUpscaleJPEGQualityKey = "Downloads.autoUpscaleJPEGQuality"
     
     private init() {}
     
@@ -47,6 +48,17 @@ actor DownloadUpscaleManager {
     // Check if quality preservation is enabled (keeps original as backup)
     nonisolated var shouldPreserveOriginal: Bool {
         UserDefaults.standard.bool(forKey: Self.autoUpscaleQualityPreservationKey)
+    }
+    
+    // Get JPEG quality setting (0.1 to 1.0)
+    nonisolated var jpegQualitySetting: Double {
+        let storedQuality = UserDefaults.standard.double(forKey: Self.autoUpscaleJPEGQualityKey)
+        if storedQuality == 0.0 {
+            // Set default value: 0.90 for very high quality
+            UserDefaults.standard.set(0.90, forKey: Self.autoUpscaleJPEGQualityKey)
+            return 0.90
+        }
+        return max(0.1, min(1.0, storedQuality)) // Clamp between 0.1 and 1.0
     }
     
     // Queue a chapter for background upscaling
@@ -219,38 +231,46 @@ actor DownloadUpscaleManager {
                 }
             }
             
-            // Save upscaled image with aggressive compression to reduce file size
+            // Save upscaled image with intelligent compression strategy
             let upscaledImage = UIImage(cgImage: upscaledCGImage)
-            
-            // Smart format selection for maximum compression:
-            // - Convert PNG to JPEG for much better compression (PNG upscales are HUGE!)
-            // - Keep JPEG as JPEG with optimized compression
-            // - Use high quality (0.85) to maintain visual quality while reducing size significantly
-            
             let originalExtension = imageURL.pathExtension.lowercased()
-            let useJPEG = originalExtension == "png" || originalExtension == "jpg" || originalExtension == "jpeg"
             
-            let imageData: Data?
-            let finalImageURL: URL
+            var imageData: Data?
+            var finalImageURL = imageURL
+            var compressionStrategy = "unknown"
             
-            if useJPEG {
-                // Convert to JPEG for maximum compression - this can reduce file size by 70-80%!
-                imageData = upscaledImage.jpegData(compressionQuality: 0.85)
+            if originalExtension == "png" {
+                // Try PNG optimization first (respecting original format)
+                imageData = upscaledImage.pngData()
+                compressionStrategy = "PNG (native)"
                 
-                // Change extension to .jpg if original was .png
-                if originalExtension == "png" {
-                    finalImageURL = imageURL.deletingPathExtension().appendingPathExtension("jpg")
-                    // Remove original PNG file after successful conversion
-                    if imageURL.exists {
-                        try? FileManager.default.removeItem(at: imageURL)
+                // If PNG result is extremely large (>8MB), offer JPEG alternative
+                if let pngData = imageData, pngData.count > 8 * 1024 * 1024 {
+                    // Try JPEG compression as alternative
+                    if let jpegData = upscaledImage.jpegData(compressionQuality: jpegQualitySetting) {
+                        let pngSize = pngData.count
+                        let jpegSize = jpegData.count
+                        let savings = Double(pngSize - jpegSize) / Double(pngSize) * 100
+                        
+                        // If JPEG saves significant space (>50%), use it
+                        if savings > 50.0 {
+                            imageData = jpegData
+                            finalImageURL = imageURL.deletingPathExtension().appendingPathExtension("jpg")
+                            compressionStrategy = "PNG→JPEG (saved \(Int(savings))% at \(Int(jpegQualitySetting*100))% quality)"
+                            
+                            // Remove original PNG file after successful conversion
+                            if imageURL.exists {
+                                try? FileManager.default.removeItem(at: imageURL)
+                            }
+                            
+                            LogManager.logger.info("Large PNG converted to JPEG: \(ByteCountFormatter.string(fromByteCount: Int64(pngSize), countStyle: .binary)) → \(ByteCountFormatter.string(fromByteCount: Int64(jpegSize), countStyle: .binary))")
+                        }
                     }
-                } else {
-                    finalImageURL = imageURL
                 }
             } else {
-                // Keep original format for other formats (webp, gif, etc.)
-                imageData = originalExtension == "png" ? upscaledImage.pngData() : upscaledImage.jpegData(compressionQuality: 0.85)
-                finalImageURL = imageURL
+                // For JPEG and other formats, use optimized JPEG compression
+                imageData = upscaledImage.jpegData(compressionQuality: jpegQualitySetting)
+                compressionStrategy = "JPEG (\(Int(jpegQualitySetting*100))% quality)"
             }
             
             guard let data = imageData else {
@@ -264,7 +284,7 @@ actor DownloadUpscaleManager {
             try await saveUpscaleMetadata(for: finalImageURL, originalSize: fileData.count, upscaledSize: data.count)
             
             let compressionRatio = Double(fileData.count) / Double(data.count)
-            LogManager.logger.debug("Successfully upscaled: \(finalImageURL.lastPathComponent) (original: \(ByteCountFormatter.string(fromByteCount: Int64(fileData.count), countStyle: .binary)) → final: \(ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .binary)), compression: \(String(format: "%.1fx", compressionRatio)))")
+            LogManager.logger.debug("Successfully upscaled: \(finalImageURL.lastPathComponent) using \(compressionStrategy) (original: \(ByteCountFormatter.string(fromByteCount: Int64(fileData.count), countStyle: .binary)) → final: \(ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .binary)), ratio: \(String(format: "%.1fx", compressionRatio)))")
             return true
             
         } catch {

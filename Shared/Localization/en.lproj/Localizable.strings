@@ -365,6 +365,7 @@
 "AUTO_UPSCALE_DOWNLOADS" = "Auto-Upscale Downloads (disables real-time upscaling)";
 "AUTO_UPSCALE_MAX_SIZE" = "Max File Size for Auto-Upscale";
 "PRESERVE_ORIGINAL_IMAGES" = "Preserve Original Images";
+"JPEG_QUALITY_SETTING" = "JPEG Quality (60%=smaller, 100%=highest quality)";
 "EXCLUDED_CATEGORIES" = "Excluded Categories";
 "REFRESH_METADATA" = "Refresh Metadata";
 "DELETE_DOWNLOAD_AFTER_READING" = "Delete Download After Reading";
