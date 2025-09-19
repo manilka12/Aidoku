@@ -561,6 +561,11 @@ extension DownloadUpscaleManager {
     
     /// Get comprehensive upscaling status for a chapter
     static func getChapterUpscalingStatus(for chapterDirectory: URL) -> ChapterUpscalingStatus {
+        // First check if the directory exists (chapter must be downloaded)
+        guard FileManager.default.fileExists(atPath: chapterDirectory.path) else {
+            return .notStarted
+        }
+        
         // Check if chapter is marked as fully complete
         if isChapterFullyUpscaled(at: chapterDirectory) {
             return .fullyUpscaled
@@ -578,6 +583,7 @@ extension DownloadUpscaleManager {
             return .fullyUpscaled
         } else {
             return .partiallyUpscaled(progress: progress)
+        }
         }
     }
 }

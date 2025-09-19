@@ -1,5 +1,16 @@
 //
-//  ChapterTableCell.swift
+//  Chastruct ChapterTableCell: View {
+    let source: Source?
+    let sourceId: String
+    let mangaId: String
+    let chapter: AidokuRunner.Chapter
+    let read: Bool
+    let page: Int?
+    let downloaded: Bool
+    var downloadProgress: Float?
+    
+    @State private var upscalingStatus: ChapterUpscalingStatus = .notStarted
+    @State private var refreshTimer: Timer?ll.swift
 //  Aidoku
 //
 //  Created by Skitty on 8/17/23.
@@ -86,9 +97,8 @@ struct ChapterTableCell: View {
     private var upscalingStatusIcon: some View {
         switch upscalingStatus {
         case .notStarted:
-            Image(systemName: "wand.and.stars")
-                .imageScale(.small)
-                .foregroundStyle(.secondary)
+            // Don't show icon for not started - only show when there's actual upscaling activity
+            EmptyView()
                 
         case .partiallyUpscaled(let progress):
             ZStack {
@@ -113,19 +123,10 @@ struct ChapterTableCell: View {
     }
     
     private func loadUpscalingStatus() async {
-        // Extract source ID and manga ID from sourceKey (format: "sourceId_mangaId")
-        let sourceKey = self.sourceKey
-        let keyComponents = sourceKey.split(separator: "_")
+        // Only load status for downloaded chapters
+        guard downloaded else { return }
         
-        guard keyComponents.count >= 2 else {
-            // Cannot determine source and manga IDs, skip upscaling status
-            return
-        }
-        
-        let sourceId = String(keyComponents[0])
-        let mangaId = String(keyComponents[1])
-        
-        // Get chapter directory path
+        // Get chapter directory path using direct parameters
         let cache = await MainActor.run { DownloadCache() }
         let chapterObj = Chapter(
             sourceId: sourceId,

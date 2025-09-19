@@ -694,7 +694,8 @@ private struct ChapterCellView<T: View>: View, Equatable {
             HStack {
                 ChapterTableCell(
                     source: source,
-                    sourceKey: sourceKey,
+                    sourceId: viewModel.manga.sourceKey,
+                    mangaId: viewModel.manga.key,
                     chapter: chapter,
                     read: read,
                     page: page,

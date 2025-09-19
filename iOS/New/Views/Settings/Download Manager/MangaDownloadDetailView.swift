@@ -235,10 +235,8 @@ private struct ChapterRow: View {
     private var upscalingStatusIcon: some View {
         switch upscalingStatus {
         case .notStarted:
-            Image(systemName: "wand.and.stars")
-                .foregroundStyle(.secondary)
-                .font(.caption)
-                .help("Not upscaled")
+            // Don't show icon for not started - only show when there's actual upscaling activity
+            EmptyView()
                 
         case .partiallyUpscaled(let progress):
             HStack(spacing: 4) {
