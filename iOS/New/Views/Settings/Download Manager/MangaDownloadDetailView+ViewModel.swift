@@ -16,6 +16,12 @@ extension MangaDownloadDetailView {
         @Published var isLoading = true
         @Published var showingDeleteAllConfirmation = false
         @Published var sortAscending = true
+        
+        // PDF Export functionality
+        @Published var isInSelectionMode = false
+        @Published var selectedChapters: Set<String> = []
+        @Published var isExporting = false
+        @Published var exportProgress: Double = 0.0
 
         @Published var manga: DownloadedMangaInfo
 
@@ -309,6 +315,88 @@ extension MangaDownloadDetailView.ViewModel {
                     self?.scheduleBackgroundUpdate()
                 }
                 .store(in: &cancellables)
+        }
+    }
+    
+    // MARK: - PDF Export Methods
+    
+    func toggleSelectionMode() {
+        isInSelectionMode.toggle()
+        if !isInSelectionMode {
+            selectedChapters.removeAll()
+        }
+    }
+    
+    func toggleChapterSelection(_ chapter: DownloadedChapterInfo) {
+        if selectedChapters.contains(chapter.chapterId) {
+            selectedChapters.remove(chapter.chapterId)
+        } else {
+            selectedChapters.insert(chapter.chapterId)
+        }
+    }
+    
+    func exportSelectedChapters() {
+        guard !selectedChapters.isEmpty else { return }
+        
+        Task {
+            await performExport()
+        }
+    }
+    
+    private func performExport() async {
+        await MainActor.run {
+            isExporting = true
+            exportProgress = 0.0
+        }
+        
+        do {
+            // Get selected chapters
+            let chaptersToExport = chapters.filter { selectedChapters.contains($0.chapterId) }
+            
+            // Create output directory in Documents
+            let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            let outputDirectory = documentsURL.appendingPathComponent("Exported PDFs").appendingPathComponent(manga.displayTitle)
+            
+            // Convert to Chapter objects for PDFExportManager
+            let chapterObjects = chaptersToExport.map { chapterInfo in
+                Chapter(
+                    sourceId: manga.sourceId,
+                    id: chapterInfo.chapterId,
+                    mangaId: manga.mangaId,
+                    title: chapterInfo.title,
+                    sourceOrder: -1
+                )
+            }
+            
+            // Export chapters
+            let exportedFiles = try await PDFExportManager.shared.exportChapters(chapterObjects, to: outputDirectory)
+            
+            await MainActor.run {
+                self.isExporting = false
+                self.isInSelectionMode = false
+                self.selectedChapters.removeAll()
+                
+                // Show success message
+                let message = String(format: NSLocalizedString("EXPORTED_CHAPTERS_COUNT"), exportedFiles.count)
+                
+                // Show system share sheet for exported folder
+                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                   let window = windowScene.windows.first,
+                   let rootViewController = window.rootViewController {
+                    let activityVC = UIActivityViewController(activityItems: [outputDirectory], applicationActivities: nil)
+                    activityVC.popoverPresentationController?.sourceView = window
+                    rootViewController.present(activityVC, animated: true)
+                }
+            }
+            
+            LogManager.logger.info("Successfully exported \(exportedFiles.count) chapters to PDF")
+            
+        } catch {
+            await MainActor.run {
+                self.isExporting = false
+            }
+            
+            LogManager.logger.error("Failed to export chapters: \(error)")
         }
     }
 }

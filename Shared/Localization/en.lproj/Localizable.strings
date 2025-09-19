@@ -366,6 +366,10 @@
 "AUTO_UPSCALE_MAX_SIZE" = "Max File Size for Auto-Upscale";
 "PRESERVE_ORIGINAL_IMAGES" = "Preserve Original Images";
 "JPEG_QUALITY_SETTING" = "Image Quality (Compressed AI Upscaled)";
+"SELECT_CHAPTERS" = "Select Chapters";
+"CANCEL_SELECTION" = "Cancel Selection";
+"EXPORT_TO_PDF" = "Export to PDF";
+"EXPORTED_CHAPTERS_COUNT" = "Successfully exported %d chapters to PDF";
 "EXCLUDED_CATEGORIES" = "Excluded Categories";
 "REFRESH_METADATA" = "Refresh Metadata";
 "DELETE_DOWNLOAD_AFTER_READING" = "Delete Download After Reading";
