@@ -362,10 +362,10 @@
 "SKIP_TITLES" = "Skip Titles";
 "ONLY_UPDATE_ON_WIFI" = "Only Update on Wi-Fi";
 "ONLY_DOWNLOAD_ON_WIFI" = "Only Download on Wi-Fi";
-"AUTO_UPSCALE_DOWNLOADS" = "Auto-Upscale Downloads (disables real-time upscaling)";
+"AUTO_UPSCALE_DOWNLOADS" = "Auto-Upscale Downloads";
 "AUTO_UPSCALE_MAX_SIZE" = "Max File Size for Auto-Upscale";
 "PRESERVE_ORIGINAL_IMAGES" = "Preserve Original Images";
-"JPEG_QUALITY_SETTING" = "JPEG Quality (60%=smaller, 100%=highest quality)";
+"JPEG_QUALITY_SETTING" = "Image Quality (Compressed AI Upscaled)";
 "EXCLUDED_CATEGORIES" = "Excluded Categories";
 "REFRESH_METADATA" = "Refresh Metadata";
 "DELETE_DOWNLOAD_AFTER_READING" = "Delete Download After Reading";

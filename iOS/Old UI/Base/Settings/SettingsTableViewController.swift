@@ -149,7 +149,14 @@ extension SettingsTableViewController {
         let cell = StepperTableViewCell(style: .default, reuseIdentifier: "StepperCell")
 
         cell.titleLabel.text = item.title
-        cell.detailLabel.text = String(UserDefaults.standard.integer(forKey: item.key ?? ""))
+        
+        // Handle decimal values for JPEG quality setting
+        if item.key == "Downloads.autoUpscaleJPEGQuality" {
+            let value = UserDefaults.standard.double(forKey: item.key ?? "")
+            cell.detailLabel.text = String(format: "%.2f", value) // Show as 0.85, 0.90, etc.
+        } else {
+            cell.detailLabel.text = String(UserDefaults.standard.integer(forKey: item.key ?? ""))
+        }
 
         let stepperView = cell.stepperView
         if let max = item.maximumValue {
@@ -161,7 +168,13 @@ extension SettingsTableViewController {
         stepperView.stepValue = item.stepValue ?? 1
         stepperView.defaultsKey = item.key ?? ""
         stepperView.handleChange { _ in
-            cell.detailLabel.text = String(UserDefaults.standard.integer(forKey: item.key ?? ""))
+            // Handle decimal values for JPEG quality setting
+            if item.key == "Downloads.autoUpscaleJPEGQuality" {
+                let value = UserDefaults.standard.double(forKey: item.key ?? "")
+                cell.detailLabel.text = String(format: "%.2f", value) // Show as 0.85, 0.90, etc.
+            } else {
+                cell.detailLabel.text = String(UserDefaults.standard.integer(forKey: item.key ?? ""))
+            }
             if let notification = item.notification {
                 self.source?.performAction(key: notification)
                 NotificationCenter.default.post(name: NSNotification.Name(notification), object: item)

@@ -392,30 +392,42 @@ actor DownloadUpscaleManager {
             return
         }
         
-        let downloadedManga = await DownloadManager.shared.getAllDownloadedManga()
+        let downloadManager = await MainActor.run { DownloadManager.shared }
+        let downloadedManga = await downloadManager.getAllDownloadedManga()
         var chaptersQueued = 0
         
-        for manga in downloadedManga {
-            let allChapters = await CoreDataManager.shared.getChapters(sourceId: manga.sourceId, mangaId: manga.id)
-            
-            // Filter chapters that are downloaded using async loop
-            var downloadedChapters: [Chapter] = []
-            for chapter in allChapters {
-                if await DownloadManager.shared.isChapterDownloaded(chapter: chapter) {
-                    downloadedChapters.append(chapter)
-                }
-            }
-            
-            for chapter in downloadedChapters {
-                let chapterKey = "\(chapter.sourceId)_\(chapter.mangaId)_\(chapter.id)"
-                if !processingQueue.contains(chapterKey) {
-                    processingQueue.insert(chapterKey)
-                    chaptersQueued += 1
+        for mangaInfo in downloadedManga {
+            let chapters = await downloadManager.getDownloadedChapters(for: mangaInfo)
+            for chapterInfo in chapters {
+                // Convert DownloadedChapterInfo to Chapter
+                let chapter = Chapter(
+                    sourceId: mangaInfo.sourceId,
+                    id: chapterInfo.chapterId,
+                    mangaId: mangaInfo.mangaId,
+                    title: chapterInfo.title,
+                    sourceOrder: -1
+                )
+                
+                let cache = await MainActor.run { DownloadCache() }
+                let chapterDirectory = await cache.directory(for: chapter)
+                
+                // Only queue chapters that have unupscaled images (smart resume logic)
+                if Self.hasUnupscaledImages(in: chapterDirectory) {
+                    let chapterKey = "\(chapter.sourceId)_\(chapter.mangaId)_\(chapter.id)"
+                    if !processingQueue.contains(chapterKey) {
+                        processingQueue.insert(chapterKey)
+                        chaptersQueued += 1
+                        
+                        let progress = Self.getUpscalingProgress(for: chapterDirectory)
+                        LogManager.logger.debug("Queued chapter \(chapter.title ?? "Unknown") for upscaling: \(Int(progress * 100))% complete")
+                    }
+                } else {
+                    LogManager.logger.debug("Skipping chapter \(chapter.title ?? "Unknown"): already fully upscaled")
                 }
             }
         }
         
-        LogManager.logger.info("Queued \(chaptersQueued) chapters for manual upscaling")
+        LogManager.logger.info("Queued \(chaptersQueued) chapters for manual upscaling (with incomplete images)")
         
         // Start processing if not already running
         if !isProcessing && !processingQueue.isEmpty {
