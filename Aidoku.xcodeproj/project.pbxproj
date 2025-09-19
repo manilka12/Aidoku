@@ -444,8 +444,6 @@
 		FBE781352830A34B0038C0E3 /* DownloadTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBE781332830A34B0038C0E3 /* DownloadTask.swift */; };
 		AB123DEF456789AB456789AC /* DownloadUpscaleManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB123DEF456789AB456789AB /* DownloadUpscaleManager.swift */; };
 		AB123DEF456789AB456789AD /* DownloadUpscaleManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB123DEF456789AB456789AB /* DownloadUpscaleManager.swift */; };
-		AB123DEF456789AB456789AE /* PDFExportManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB123DEF456789AB456789AF /* PDFExportManager.swift */; };
-		AB123DEF456789AB456789B0 /* PDFExportManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB123DEF456789AB456789AF /* PDFExportManager.swift */; };
 		FBE7813A283406EB0038C0E3 /* DownloadQueueViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBE78139283406EB0038C0E3 /* DownloadQueueViewController.swift */; };
 		FBE7A5892DE0D64500CA5B60 /* AddSourceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBE7A5882DE0D64300CA5B60 /* AddSourceView.swift */; };
 		FBE7A58B2DE11A5500CA5B60 /* CustomSearchable.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBE7A58A2DE11A5300CA5B60 /* CustomSearchable.swift */; };
@@ -847,7 +845,6 @@
 		FBE7812E28308DC60038C0E3 /* Download.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Download.swift; sourceTree = "<group>"; };
 		FBE781332830A34B0038C0E3 /* DownloadTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadTask.swift; sourceTree = "<group>"; };
 		AB123DEF456789AB456789AB /* DownloadUpscaleManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadUpscaleManager.swift; sourceTree = "<group>"; };
-		AB123DEF456789AB456789AF /* PDFExportManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExportManager.swift; sourceTree = "<group>"; };
 		FBE78139283406EB0038C0E3 /* DownloadQueueViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadQueueViewController.swift; sourceTree = "<group>"; };
 		FBE7A5882DE0D64300CA5B60 /* AddSourceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSourceView.swift; sourceTree = "<group>"; };
 		FBE7A58A2DE11A5300CA5B60 /* CustomSearchable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomSearchable.swift; sourceTree = "<group>"; };
@@ -1967,7 +1964,6 @@
 				FBE781332830A34B0038C0E3 /* DownloadTask.swift */,
 				FBE78128282F481A0038C0E3 /* DownloadCache.swift */,
 				AB123DEF456789AB456789AB /* DownloadUpscaleManager.swift */,
-				AB123DEF456789AB456789AF /* PDFExportManager.swift */,
 			);
 			path = Downloads;
 			sourceTree = "<group>";
@@ -2484,7 +2480,6 @@
 				FB1BEF8C2E3BFFF000098D21 /* HistorySection.swift in Sources */,
 				FBE781342830A34B0038C0E3 /* DownloadTask.swift in Sources */,
 				AB123DEF456789AB456789AC /* DownloadUpscaleManager.swift in Sources */,
-				AB123DEF456789AB456789AE /* PDFExportManager.swift in Sources */,
 				FB9A48422968943400FFC414 /* SwiftUINavigationView.swift in Sources */,
 				FB58C6B02999B44100A6F49F /* WasmNetWebViewHandler.swift in Sources */,
 				FBE53F0E29CCA78000899601 /* HeightQueryable.swift in Sources */,
@@ -2583,7 +2578,6 @@
 				FB14B1322DF4D36A0067E4D4 /* NotificationName.swift in Sources */,
 				FBE781352830A34B0038C0E3 /* DownloadTask.swift in Sources */,
 				AB123DEF456789AB456789AD /* DownloadUpscaleManager.swift in Sources */,
-				AB123DEF456789AB456789B0 /* PDFExportManager.swift in Sources */,
 				FBAE7BEF2AF2DC5D00D530EE /* LegacySource.swift in Sources */,
 				FB7B7EDB278CEA6A001E6EAF /* FileManager.swift in Sources */,
 				FB55C0B22DF244580019A551 /* LocalSource.swift in Sources */,

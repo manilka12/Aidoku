@@ -46,19 +46,6 @@ struct MangaDownloadDetailView: View {
                         }
 
                         if !viewModel.chapters.isEmpty {
-                            Button(action: viewModel.toggleSelectionMode) {
-                                Label(
-                                    viewModel.isInSelectionMode ? NSLocalizedString("CANCEL_SELECTION") : NSLocalizedString("SELECT_CHAPTERS"),
-                                    systemImage: viewModel.isInSelectionMode ? "xmark.circle" : "checkmark.circle"
-                                )
-                            }
-                            
-                            if viewModel.isInSelectionMode && !viewModel.selectedChapters.isEmpty {
-                                Button(action: viewModel.exportSelectedChapters) {
-                                    Label(NSLocalizedString("EXPORT_TO_PDF"), systemImage: "doc.pdf")
-                                }
-                            }
-                            
                             Button(role: .destructive, action: viewModel.confirmDeleteAll) {
                                 Label(NSLocalizedString("REMOVE_ALL_DOWNLOADS"), systemImage: "trash")
                             }
@@ -109,31 +96,14 @@ struct MangaDownloadDetailView: View {
             // Chapters list with smooth animations
             Section {
                 ForEach(viewModel.chapters) { chapter in
-                    HStack {
-                        if viewModel.isInSelectionMode {
-                            Button {
-                                viewModel.toggleChapterSelection(chapter)
-                            } label: {
-                                Image(systemName: viewModel.selectedChapters.contains(chapter.chapterId) ? 
-                                      "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(viewModel.selectedChapters.contains(chapter.chapterId) ? 
-                                                   Color.accentColor : Color.secondary)
-                            }
-                        }
-                        
-                        Button {
-                            if viewModel.isInSelectionMode {
-                                viewModel.toggleChapterSelection(chapter)
-                            } else {
-                                openReaderView(chapter: chapter)
-                            }
-                        } label: {
-                            ChapterRow(chapter: chapter)
-                        }
-                        .foregroundStyle(.primary)
+                    Button {
+                        openReaderView(chapter: chapter)
+                    } label: {
+                        ChapterRow(chapter: chapter)
                     }
+                    .foregroundStyle(.primary)
                 }
-                .onDelete(perform: viewModel.isInSelectionMode ? nil : delete)
+                .onDelete(perform: delete)
             } header: {
                 HStack {
                     Text(NSLocalizedString("DOWNLOADED_CHAPTERS"))
