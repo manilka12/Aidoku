@@ -362,7 +362,7 @@
 "SKIP_TITLES" = "Skip Titles";
 "ONLY_UPDATE_ON_WIFI" = "Only Update on Wi-Fi";
 "ONLY_DOWNLOAD_ON_WIFI" = "Only Download on Wi-Fi";
-"AUTO_UPSCALE_DOWNLOADS" = "Auto-Upscale Downloads";
+"AUTO_UPSCALE_DOWNLOADS" = "Auto-Upscale Downloads (disables real-time upscaling)";
 "AUTO_UPSCALE_MAX_SIZE" = "Max File Size for Auto-Upscale";
 "PRESERVE_ORIGINAL_IMAGES" = "Preserve Original Images";
 "EXCLUDED_CATEGORIES" = "Excluded Categories";

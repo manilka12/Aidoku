@@ -172,6 +172,12 @@ actor DownloadUpscaleManager {
     
     // Upscale a single image file
     private func upscaleImage(at imageURL: URL) async -> Bool {
+        // Skip images that are already upscaled
+        if isImageUpscaled(imageURL) {
+            LogManager.logger.debug("Skipping already upscaled image: \(imageURL.lastPathComponent)")
+            return true
+        }
+        
         guard let fileData = try? Data(contentsOf: imageURL),
               fileData.count <= maxAutoUpscaleSize else {
             LogManager.logger.debug("Skipping upscale for \(imageURL.lastPathComponent): file too large or unreadable")
@@ -213,15 +219,17 @@ actor DownloadUpscaleManager {
                 }
             }
             
-            // Save upscaled image
+            // Save upscaled image with compression to reduce file size
             let upscaledImage = UIImage(cgImage: upscaledCGImage)
             
-            // Choose format based on original file extension
+            // Choose format and compression based on original file extension
             let imageData: Data?
             if imageURL.pathExtension.lowercased() == "png" {
+                // For PNG, use moderate compression
                 imageData = upscaledImage.pngData()
             } else {
-                imageData = upscaledImage.jpegData(compressionQuality: 0.95)
+                // For JPEG, use high quality compression (0.85 instead of 0.95 to reduce size)
+                imageData = upscaledImage.jpegData(compressionQuality: 0.85)
             }
             
             guard let data = imageData else {
@@ -231,7 +239,10 @@ actor DownloadUpscaleManager {
             
             try data.write(to: imageURL)
             
-            LogManager.logger.debug("Successfully upscaled: \(imageURL.lastPathComponent)")
+            // Save metadata to indicate this image was upscaled
+            try await saveUpscaleMetadata(for: imageURL, originalSize: fileData.count, upscaledSize: data.count)
+            
+            LogManager.logger.debug("Successfully upscaled: \(imageURL.lastPathComponent) (size: \(ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .binary)))")
             return true
             
         } catch {
@@ -246,6 +257,35 @@ actor DownloadUpscaleManager {
         processingTask?.cancel()
         processingTask = nil
         processingQueue.removeAll()
+    }
+    
+    // MARK: - Upscale Detection Methods
+    
+    // Check if an image has already been upscaled
+    nonisolated func isImageUpscaled(_ imageURL: URL) -> Bool {
+        let metadataURL = getMetadataURL(for: imageURL)
+        return metadataURL.exists
+    }
+    
+    // Save metadata when an image is upscaled
+    private func saveUpscaleMetadata(for imageURL: URL, originalSize: Int, upscaledSize: Int) async throws {
+        let metadata = [
+            "upscaled": true,
+            "timestamp": Date().timeIntervalSince1970,
+            "originalSize": originalSize,
+            "upscaledSize": upscaledSize,
+            "version": "1.0"
+        ] as [String: Any]
+        
+        let metadataURL = getMetadataURL(for: imageURL)
+        let data = try JSONSerialization.data(withJSONObject: metadata, options: [])
+        try data.write(to: metadataURL)
+    }
+    
+    // Get metadata file URL for an image
+    private nonisolated func getMetadataURL(for imageURL: URL) -> URL {
+        let filename = imageURL.deletingPathExtension().lastPathComponent
+        return imageURL.deletingLastPathComponent().appendingPathComponent(".\(filename).upscale")
     }
     
     // Get current queue status

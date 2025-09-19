@@ -29,6 +29,12 @@ struct UpscaleProcessor: ImageProcessing {
         guard ModelManager.shared.getEnabledModelFileName() != nil else {
             return image
         }
+        
+        // Skip real-time upscaling if auto-upscaling is enabled to prevent conflicts
+        // This avoids re-upscaling already processed downloaded images
+        if DownloadUpscaleManager.shared.isAutoUpscaleEnabled {
+            return image
+        }
 
         // ensure image is smaller than max width
         let maxWidth = UserDefaults.standard.integer(forKey: "Reader.upscaleMaxHeight") // Note: keeping same key for compatibility
