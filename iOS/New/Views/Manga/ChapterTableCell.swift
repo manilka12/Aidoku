@@ -108,14 +108,26 @@ struct ChapterTableCell: View {
     }
     
     private func loadUpscalingStatus() async {
+        // Extract source ID and manga ID from sourceKey (format: "sourceId_mangaId")
+        let sourceKey = self.sourceKey
+        let keyComponents = sourceKey.split(separator: "_")
+        
+        guard keyComponents.count >= 2 else {
+            // Cannot determine source and manga IDs, skip upscaling status
+            return
+        }
+        
+        let sourceId = String(keyComponents[0])
+        let mangaId = String(keyComponents[1])
+        
         // Get chapter directory path
         let cache = await MainActor.run { DownloadCache() }
         let chapterObj = Chapter(
-            sourceId: chapter.sourceId,
+            sourceId: sourceId,
             id: chapter.id,
-            mangaId: chapter.mangaId,
+            mangaId: mangaId,
             title: chapter.title,
-            sourceOrder: chapter.sourceOrder
+            sourceOrder: -1 // Default value since we don't have this from AidokuRunner.Chapter
         )
         let chapterDirectory = await cache.directory(for: chapterObj)
         

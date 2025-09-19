@@ -99,7 +99,7 @@ struct MangaDownloadDetailView: View {
                     Button {
                         openReaderView(chapter: chapter)
                     } label: {
-                        ChapterRow(chapter: chapter)
+                        ChapterRow(chapter: chapter, manga: viewModel.manga)
                     }
                     .foregroundStyle(.primary)
                 }
@@ -196,6 +196,7 @@ struct MangaDownloadDetailView: View {
 
 private struct ChapterRow: View {
     let chapter: DownloadedChapterInfo
+    let manga: DownloadedMangaInfo
     @State private var upscalingStatus: ChapterUpscalingStatus = .notStarted
 
     var body: some View {
@@ -254,12 +255,12 @@ private struct ChapterRow: View {
     }
     
     private func loadUpscalingStatus() async {
-        // Get chapter directory path
+        // Get chapter directory path using manga info for source and manga IDs
         let cache = await MainActor.run { DownloadCache() }
         let chapterObj = Chapter(
-            sourceId: chapter.sourceId,
+            sourceId: manga.sourceId,
             id: chapter.chapterId,
-            mangaId: chapter.mangaId,
+            mangaId: manga.id,
             title: chapter.title,
             sourceOrder: -1
         )
