@@ -99,7 +99,7 @@ struct MangaDownloadDetailView: View {
                     Button {
                         openReaderView(chapter: chapter)
                     } label: {
-                        ChapterRow(chapter: chapter, manga: viewModel.manga)
+                        ChapterRow(chapter: chapter)
                     }
                     .foregroundStyle(.primary)
                 }
@@ -196,9 +196,6 @@ struct MangaDownloadDetailView: View {
 
 private struct ChapterRow: View {
     let chapter: DownloadedChapterInfo
-    let manga: DownloadedMangaInfo
-    @State private var upscalingStatus: ChapterUpscalingStatus = .notStarted
-    @State private var refreshTimer: Timer?
 
     var body: some View {
         HStack {
@@ -217,86 +214,8 @@ private struct ChapterRow: View {
             }
 
             Spacer()
-            
-            // Upscaling Status Icon
-            upscalingStatusIcon
         }
         .contentShape(Rectangle())
-        .task {
-            await loadUpscalingStatus()
-            startPeriodicRefresh()
-        }
-        .onDisappear {
-            stopPeriodicRefresh()
-        }
-    }
-    
-    @ViewBuilder
-    private var upscalingStatusIcon: some View {
-        switch upscalingStatus {
-        case .notStarted:
-            // Don't show icon for not started - only show when there's actual upscaling activity
-            EmptyView()
-                
-        case .partiallyUpscaled(let progress):
-            HStack(spacing: 4) {
-                Image(systemName: "wand.and.stars.inverse")
-                    .foregroundStyle(.orange)
-                    .font(.caption)
-                Text("\(Int(progress * 100))%")
-                    .font(.caption2)
-                    .foregroundStyle(.orange)
-            }
-            .help("Partially upscaled: \(Int(progress * 100))%")
-            
-        case .fullyUpscaled:
-            Image(systemName: "wand.and.stars.inverse")
-                .foregroundStyle(.green)
-                .font(.caption)
-                .help("Fully upscaled")
-        }
-    }
-    
-    private func loadUpscalingStatus() async {
-        // Get chapter directory path using manga info for source and manga IDs
-        let cache = await MainActor.run { DownloadCache() }
-        let chapterObj = Chapter(
-            sourceId: manga.sourceId,
-            id: chapter.chapterId,
-            mangaId: manga.id,
-            title: chapter.title,
-            sourceOrder: -1
-        )
-        let chapterDirectory = await cache.directory(for: chapterObj)
-        
-        // Get upscaling status
-        let status = DownloadUpscaleManager.getChapterUpscalingStatus(for: chapterDirectory)
-        
-        await MainActor.run {
-            upscalingStatus = status
-        }
-    }
-    
-    private func startPeriodicRefresh() {
-        // Only refresh if chapter might be upscaling (not fully complete)
-        guard upscalingStatus != .fullyUpscaled else { return }
-        
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
-            Task {
-                await loadUpscalingStatus()
-                // Stop timer if chapter is now fully upscaled
-                if case .fullyUpscaled = upscalingStatus {
-                    await MainActor.run {
-                        stopPeriodicRefresh()
-                    }
-                }
-            }
-        }
-    }
-    
-    private func stopPeriodicRefresh() {
-        refreshTimer?.invalidate()
-        refreshTimer = nil
     }
 
     private func formatChapterSubtitle() -> String? {

@@ -1,16 +1,5 @@
 //
-//  Chastruct ChapterTableCell: View {
-    let source: Source?
-    let sourceId: String
-    let mangaId: String
-    let chapter: AidokuRunner.Chapter
-    let read: Bool
-    let page: Int?
-    let downloaded: Bool
-    var downloadProgress: Float?
-    
-    @State private var upscalingStatus: ChapterUpscalingStatus = .notStarted
-    @State private var refreshTimer: Timer?ll.swift
+//  ChapterTableCell.swift
 //  Aidoku
 //
 //  Created by Skitty on 8/17/23.
@@ -27,9 +16,6 @@ struct ChapterTableCell: View {
     let page: Int?
     let downloaded: Bool
     var downloadProgress: Float?
-    
-    @State private var upscalingStatus: ChapterUpscalingStatus = .notStarted
-    @State private var refreshTimer: Timer?
 
     var locked: Bool {
         chapter.locked && !downloaded
@@ -59,12 +45,6 @@ struct ChapterTableCell: View {
                 }
             }
             Spacer(minLength: 0)
-            
-            // Upscaling status icon (only for downloaded chapters)
-            if downloaded {
-                upscalingStatusIcon
-            }
-            
             if downloaded {
                 Image(systemName: "arrow.down.circle.fill")
                     .imageScale(.small)
@@ -82,89 +62,6 @@ struct ChapterTableCell: View {
         .padding(.vertical, 22 / 3)
         .frame(alignment: .leading)
         .contentShape(Rectangle())
-        .task {
-            if downloaded {
-                await loadUpscalingStatus()
-                startPeriodicRefresh()
-            }
-        }
-        .onDisappear {
-            stopPeriodicRefresh()
-        }
-    }
-    
-    @ViewBuilder
-    private var upscalingStatusIcon: some View {
-        switch upscalingStatus {
-        case .notStarted:
-            // Don't show icon for not started - only show when there's actual upscaling activity
-            EmptyView()
-                
-        case .partiallyUpscaled(let progress):
-            ZStack {
-                Image(systemName: "wand.and.stars.inverse")
-                    .imageScale(.small)
-                    .foregroundStyle(.orange)
-                
-                // Optional: Small progress indicator
-                if progress < 1.0 {
-                    Text("\(Int(progress * 100))")
-                        .font(.system(size: 6, weight: .bold))
-                        .foregroundStyle(.white)
-                        .offset(x: 0, y: 1)
-                }
-            }
-            
-        case .fullyUpscaled:
-            Image(systemName: "wand.and.stars.inverse")
-                .imageScale(.small)
-                .foregroundStyle(.green)
-        }
-    }
-    
-    private func loadUpscalingStatus() async {
-        // Only load status for downloaded chapters
-        guard downloaded else { return }
-        
-        // Get chapter directory path using direct parameters
-        let cache = await MainActor.run { DownloadCache() }
-        let chapterObj = Chapter(
-            sourceId: sourceId,
-            id: chapter.id,
-            mangaId: mangaId,
-            title: chapter.title,
-            sourceOrder: -1 // Default value since we don't have this from AidokuRunner.Chapter
-        )
-        let chapterDirectory = await cache.directory(for: chapterObj)
-        
-        // Get upscaling status
-        let status = DownloadUpscaleManager.getChapterUpscalingStatus(for: chapterDirectory)
-        
-        await MainActor.run {
-            upscalingStatus = status
-        }
-    }
-    
-    private func startPeriodicRefresh() {
-        // Only refresh if chapter might be upscaling (not fully complete) and is downloaded
-        guard downloaded && upscalingStatus != .fullyUpscaled else { return }
-        
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
-            Task {
-                await loadUpscalingStatus()
-                // Stop timer if chapter is now fully upscaled
-                if case .fullyUpscaled = upscalingStatus {
-                    await MainActor.run {
-                        stopPeriodicRefresh()
-                    }
-                }
-            }
-        }
-    }
-    
-    private func stopPeriodicRefresh() {
-        refreshTimer?.invalidate()
-        refreshTimer = nil
     }
 }
 
