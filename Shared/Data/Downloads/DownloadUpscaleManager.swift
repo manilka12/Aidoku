@@ -150,12 +150,20 @@ actor DownloadUpscaleManager {
             return
         }
         
-        LogManager.logger.info("Starting auto-upscale for chapter \(chapterKey): \(imageFiles.count) images")
+        // Filter to only process unupscaled images (enables resume functionality)
+        let unupscaledImages = Self.getUnupscaledImages(in: chapterDirectory)
+        
+        guard !unupscaledImages.isEmpty else {
+            LogManager.logger.info("All images already upscaled in chapter \(chapterKey)")
+            return
+        }
+        
+        LogManager.logger.info("Starting upscaling: \(unupscaledImages.count)/\(imageFiles.count) images remaining in chapter \(chapterKey)")
         
         var successCount = 0
         var failureCount = 0
         
-        for imageFile in imageFiles {
+        for imageFile in unupscaledImages {
             let success = await upscaleImage(at: imageFile)
             if success {
                 successCount += 1
@@ -280,8 +288,8 @@ actor DownloadUpscaleManager {
             
             try data.write(to: finalImageURL)
             
-            // Save metadata to indicate this image was upscaled
-            try await saveUpscaleMetadata(for: finalImageURL, originalSize: fileData.count, upscaledSize: data.count)
+            // Mark image as upscaled with metadata for tracking
+            Self.markImageAsUpscaled(at: finalImageURL, quality: jpegQualitySetting, originalSize: Int64(fileData.count), upscaledSize: Int64(data.count))
             
             let compressionRatio = Double(fileData.count) / Double(data.count)
             LogManager.logger.debug("Successfully upscaled: \(finalImageURL.lastPathComponent) using \(compressionStrategy) (original: \(ByteCountFormatter.string(fromByteCount: Int64(fileData.count), countStyle: .binary)) → final: \(ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .binary)), ratio: \(String(format: "%.1fx", compressionRatio)))")
@@ -299,6 +307,48 @@ actor DownloadUpscaleManager {
         processingTask?.cancel()
         processingTask = nil
         processingQueue.removeAll()
+    }
+    
+    // Resume upscaling for any incomplete chapters on app startup
+    func resumeIncompleteUpscaling() async {
+        guard isAutoUpscaleEnabled else { return }
+        
+        LogManager.logger.info("Scanning for incomplete upscaling tasks...")
+        
+        let downloadManager = await MainActor.run { DownloadManager.shared }
+        let downloadedManga = await downloadManager.getDownloadedManga()
+        
+        var incompleteCount = 0
+        for mangaInfo in downloadedManga {
+            let chapters = await downloadManager.getDownloadedChapters(for: mangaInfo)
+            for chapterInfo in chapters {
+                // Convert DownloadedChapterInfo to Chapter
+                let chapter = Chapter(
+                    sourceId: mangaInfo.sourceId,
+                    id: chapterInfo.chapterId,
+                    mangaId: mangaInfo.mangaId,
+                    title: chapterInfo.title,
+                    sourceOrder: -1
+                )
+                
+                let cache = await MainActor.run { DownloadCache() }
+                let chapterDirectory = await cache.directory(for: chapter)
+                
+                if Self.hasUnupscaledImages(in: chapterDirectory) {
+                    incompleteCount += 1
+                    await queueChapterForUpscaling(chapter)
+                    
+                    let progress = Self.getUpscalingProgress(for: chapterDirectory)
+                    LogManager.logger.debug("Resuming upscaling for chapter \(chapter.title ?? "Unknown"): \(Int(progress * 100))% complete")
+                }
+            }
+        }
+        
+        if incompleteCount > 0 {
+            LogManager.logger.info("Found \(incompleteCount) chapters with incomplete upscaling, resuming...")
+        } else {
+            LogManager.logger.info("No incomplete upscaling tasks found")
+        }
     }
     
     // MARK: - Upscale Detection Methods
@@ -400,5 +450,66 @@ private extension URL {
             totalSize += Int64(fileSize)
         }
         return totalSize
+    }
+}
+
+// MARK: - Individual Image Tracking Extensions
+extension DownloadUpscaleManager {
+    
+    /// Check if a specific image has been upscaled
+    static func isImageUpscaled(at imagePath: URL) -> Bool {
+        let upscaleMarkerPath = imagePath.appendingPathExtension("upscaled")
+        return FileManager.default.fileExists(atPath: upscaleMarkerPath.path)
+    }
+    
+    /// Mark a specific image as upscaled
+    static func markImageAsUpscaled(at imagePath: URL, quality: Double = 0.90, originalSize: Int64 = 0, upscaledSize: Int64 = 0) {
+        let upscaleMarkerPath = imagePath.appendingPathExtension("upscaled")
+        let metadata = """
+        upscaled
+        quality: \(quality)
+        original_size: \(originalSize)
+        upscaled_size: \(upscaledSize)
+        timestamp: \(Date().timeIntervalSince1970)
+        """
+        try? metadata.write(to: upscaleMarkerPath, atomically: true, encoding: .utf8)
+    }
+    
+    /// Get all image files in a directory that need upscaling
+    static func getUnupscaledImages(in directory: URL) -> [URL] {
+        guard let contents = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) else {
+            return []
+        }
+        
+        let imageExtensions = Set(["jpg", "jpeg", "png", "webp", "gif"])
+        let imageFiles = contents.filter { url in
+            let ext = url.pathExtension.lowercased()
+            return imageExtensions.contains(ext) && !url.lastPathComponent.hasSuffix(".original")
+        }
+        
+        return imageFiles.filter { !isImageUpscaled(at: $0) }
+    }
+    
+    /// Check if a downloaded chapter has any unupscaled images
+    static func hasUnupscaledImages(in chapterDirectory: URL) -> Bool {
+        return !getUnupscaledImages(in: chapterDirectory).isEmpty
+    }
+    
+    /// Get upscaling progress for a chapter (0.0 to 1.0)
+    static func getUpscalingProgress(for chapterDirectory: URL) -> Double {
+        guard let contents = try? FileManager.default.contentsOfDirectory(at: chapterDirectory, includingPropertiesForKeys: nil) else {
+            return 0.0
+        }
+        
+        let imageExtensions = Set(["jpg", "jpeg", "png", "webp", "gif"])
+        let imageFiles = contents.filter { url in
+            let ext = url.pathExtension.lowercased()
+            return imageExtensions.contains(ext) && !url.lastPathComponent.hasSuffix(".original")
+        }
+        
+        guard !imageFiles.isEmpty else { return 1.0 } // No images = complete
+        
+        let upscaledCount = imageFiles.filter { isImageUpscaled(at: $0) }.count
+        return Double(upscaledCount) / Double(imageFiles.count)
     }
 }

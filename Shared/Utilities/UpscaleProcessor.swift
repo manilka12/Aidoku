@@ -29,16 +29,49 @@ struct UpscaleProcessor: ImageProcessing {
         guard ModelManager.shared.getEnabledModelFileName() != nil else {
             return image
         }
+
+        // ensure image is smaller than max width
+        let maxWidth = UserDefaults.standard.integer(forKey: "Reader.upscaleMaxHeight")
+        guard cgImage.width < maxWidth else { return image }
         
-        // Skip real-time upscaling if auto-upscaling is enabled to prevent conflicts
-        // This avoids re-upscaling already processed downloaded images
-        if DownloadUpscaleManager.shared.isAutoUpscaleEnabled {
-            return image
+        // Process with basic upscaling (no context available in this method)
+        return processUpscaling(image: image)
+    }
+    
+    func process(_ container: ImageContainer, context: ImageProcessingContext) throws -> ImageContainer {
+        guard let cgImage = container.image.cgImage else { return container }
+
+        // ensure an upscaling model is enabled
+        guard ModelManager.shared.getEnabledModelFileName() != nil else {
+            return container
         }
 
         // ensure image is smaller than max width
-        let maxWidth = UserDefaults.standard.integer(forKey: "Reader.upscaleMaxHeight") // Note: keeping same key for compatibility
-        guard cgImage.width < maxWidth else { return image }
+        let maxWidth = UserDefaults.standard.integer(forKey: "Reader.upscaleMaxHeight")
+        guard cgImage.width < maxWidth else { return container }
+        
+        // Smart detection: Check if this image is from a downloaded chapter and already upscaled
+        if let imageURL = context.request.url {
+            // Check if this is a local file URL (downloaded image)
+            if imageURL.isFileURL {
+                // Check if image is already upscaled
+                if DownloadUpscaleManager.isImageUpscaled(at: imageURL) {
+                    LogManager.logger.debug("Skipping real-time upscale: image already upscaled at \(imageURL.lastPathComponent)")
+                    return container
+                }
+            }
+        }
+        
+        // Process upscaling
+        guard let upscaledImage = processUpscaling(image: container.image) else {
+            return container
+        }
+        
+        return container.map { _ in upscaledImage }
+    }
+    
+    private func processUpscaling(image: PlatformImage) -> PlatformImage? {
+        guard let cgImage = image.cgImage else { return image }
 
         return BlockingTask {
             let model: ImageProcessingModel
