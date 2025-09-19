@@ -196,6 +196,7 @@ struct MangaDownloadDetailView: View {
 
 private struct ChapterRow: View {
     let chapter: DownloadedChapterInfo
+    @State private var upscalingStatus: ChapterUpscalingStatus = .notStarted
 
     var body: some View {
         HStack {
@@ -214,8 +215,62 @@ private struct ChapterRow: View {
             }
 
             Spacer()
+            
+            // Upscaling Status Icon
+            upscalingStatusIcon
         }
         .contentShape(Rectangle())
+        .task {
+            await loadUpscalingStatus()
+        }
+    }
+    
+    @ViewBuilder
+    private var upscalingStatusIcon: some View {
+        switch upscalingStatus {
+        case .notStarted:
+            Image(systemName: "wand.and.stars")
+                .foregroundStyle(.secondary)
+                .font(.caption)
+                .help("Not upscaled")
+                
+        case .partiallyUpscaled(let progress):
+            HStack(spacing: 4) {
+                Image(systemName: "wand.and.stars.inverse")
+                    .foregroundStyle(.orange)
+                    .font(.caption)
+                Text("\(Int(progress * 100))%")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+            }
+            .help("Partially upscaled: \(Int(progress * 100))%")
+            
+        case .fullyUpscaled:
+            Image(systemName: "wand.and.stars.inverse")
+                .foregroundStyle(.green)
+                .font(.caption)
+                .help("Fully upscaled")
+        }
+    }
+    
+    private func loadUpscalingStatus() async {
+        // Get chapter directory path
+        let cache = await MainActor.run { DownloadCache() }
+        let chapterObj = Chapter(
+            sourceId: chapter.sourceId,
+            id: chapter.chapterId,
+            mangaId: chapter.mangaId,
+            title: chapter.title,
+            sourceOrder: -1
+        )
+        let chapterDirectory = await cache.directory(for: chapterObj)
+        
+        // Get upscaling status
+        let status = DownloadUpscaleManager.getChapterUpscalingStatus(for: chapterDirectory)
+        
+        await MainActor.run {
+            upscalingStatus = status
+        }
     }
 
     private func formatChapterSubtitle() -> String? {

@@ -183,7 +183,9 @@ actor DownloadUpscaleManager {
                 failedQueue.insert(chapterKey)
             }
         } else {
-            LogManager.logger.info("Successfully upscaled all images in chapter \(chapterKey)")
+            // Mark chapter as fully upscaled if all images were successful
+            Self.markChapterAsFullyUpscaled(at: chapterDirectory)
+            LogManager.logger.info("Successfully upscaled all images in chapter \(chapterKey) - marked as complete")
         }
         
         // Clear retry count on successful completion
@@ -523,5 +525,76 @@ extension DownloadUpscaleManager {
         
         let upscaledCount = imageFiles.filter { isImageUpscaled(at: $0) }.count
         return Double(upscaledCount) / Double(imageFiles.count)
+    }
+    
+    // MARK: - Chapter-Level Completion Tracking
+    
+    /// Mark a chapter as fully upscaled
+    static func markChapterAsFullyUpscaled(at chapterDirectory: URL) {
+        let finishedMarkerPath = chapterDirectory.appendingPathComponent("finished.upscale")
+        let metadata = """
+        chapter_fully_upscaled
+        completed_timestamp: \(Date().timeIntervalSince1970)
+        """
+        try? metadata.write(to: finishedMarkerPath, atomically: true, encoding: .utf8)
+    }
+    
+    /// Check if a chapter is fully upscaled
+    static func isChapterFullyUpscaled(at chapterDirectory: URL) -> Bool {
+        let finishedMarkerPath = chapterDirectory.appendingPathComponent("finished.upscale")
+        return FileManager.default.fileExists(atPath: finishedMarkerPath.path)
+    }
+    
+    /// Remove chapter completion marker (for reprocessing)
+    static func removeChapterCompletionMarker(at chapterDirectory: URL) {
+        let finishedMarkerPath = chapterDirectory.appendingPathComponent("finished.upscale")
+        try? FileManager.default.removeItem(at: finishedMarkerPath)
+    }
+    
+    /// Get comprehensive upscaling status for a chapter
+    static func getChapterUpscalingStatus(for chapterDirectory: URL) -> ChapterUpscalingStatus {
+        // Check if chapter is marked as fully complete
+        if isChapterFullyUpscaled(at: chapterDirectory) {
+            return .fullyUpscaled
+        }
+        
+        // Get current progress
+        let progress = getUpscalingProgress(for: chapterDirectory)
+        
+        if progress == 0.0 {
+            return .notStarted
+        } else if progress == 1.0 {
+            // All images are upscaled but not marked as complete yet
+            // Mark it as complete now
+            markChapterAsFullyUpscaled(at: chapterDirectory)
+            return .fullyUpscaled
+        } else {
+            return .partiallyUpscaled(progress: progress)
+        }
+    }
+}
+
+/// Represents the upscaling status of a chapter
+enum ChapterUpscalingStatus: Equatable {
+    case notStarted
+    case partiallyUpscaled(progress: Double)
+    case fullyUpscaled
+    
+    var isComplete: Bool {
+        if case .fullyUpscaled = self {
+            return true
+        }
+        return false
+    }
+    
+    var progressPercentage: Int {
+        switch self {
+        case .notStarted:
+            return 0
+        case .partiallyUpscaled(let progress):
+            return Int(progress * 100)
+        case .fullyUpscaled:
+            return 100
+        }
     }
 }
