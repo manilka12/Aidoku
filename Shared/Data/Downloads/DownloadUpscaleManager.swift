@@ -109,12 +109,12 @@ actor DownloadUpscaleManager {
     
     // Upscale all images in a chapter
     private func upscaleChapterImages(_ chapter: Chapter) async {
-        let cache = DownloadCache()
+        let cache = await MainActor.run { DownloadCache() }
         let chapterDirectory = await cache.directory(for: chapter)
         let chapterKey = "\(chapter.sourceId)_\(chapter.mangaId)_\(chapter.id)"
         
         guard chapterDirectory.exists else { 
-            LogManager.logger.warning("Chapter directory not found for upscaling: \(chapterKey)")
+            LogManager.logger.warn("Chapter directory not found for upscaling: \(chapterKey)")
             return 
         }
         
@@ -156,7 +156,7 @@ actor DownloadUpscaleManager {
         }
         
         if failureCount > 0 {
-            LogManager.logger.warning("Completed upscaling for chapter \(chapterKey): \(successCount) success, \(failureCount) failures")
+            LogManager.logger.warn("Completed upscaling for chapter \(chapterKey): \(successCount) success, \(failureCount) failures")
             
             // Add to failed queue if too many failures
             if failureCount > imageFiles.count / 2 {
@@ -180,7 +180,7 @@ actor DownloadUpscaleManager {
         
         guard let originalImage = UIImage(data: fileData),
               let cgImage = originalImage.cgImage else {
-            LogManager.logger.warning("Could not decode image: \(imageURL.lastPathComponent)")
+            LogManager.logger.warn("Could not decode image: \(imageURL.lastPathComponent)")
             return false
         }
         
@@ -195,7 +195,7 @@ actor DownloadUpscaleManager {
         do {
             // Get the enabled model
             guard let model = try await ModelManager.shared.getEnabledModel() else {
-                LogManager.logger.warning("No upscaling model available for auto-upscale")
+                LogManager.logger.warn("No upscaling model available for auto-upscale")
                 return false
             }
             
@@ -256,18 +256,25 @@ actor DownloadUpscaleManager {
     // Queue all downloaded chapters for upscaling (for manual upscaling)
     func queueAllDownloadsForUpscaling() async {
         guard isAutoUpscaleEnabled || ModelManager.shared.getEnabledModelFileName() != nil else {
-            LogManager.logger.warning("Cannot queue downloads for upscaling: no model enabled")
+            LogManager.logger.warn("Cannot queue downloads for upscaling: no model enabled")
             return
         }
         
-        let downloadedManga = await DownloadManager.shared.getDownloadedManga()
+        let downloadedManga = await DownloadManager.shared.getAllDownloadedManga()
         var chaptersQueued = 0
         
         for manga in downloadedManga {
-            let chapters = await CoreDataManager.shared.getChapters(sourceId: manga.sourceId, mangaId: manga.id)
-                .filter { await DownloadManager.shared.isChapterDownloaded(chapter: $0) }
+            let allChapters = await CoreDataManager.shared.getChapters(sourceId: manga.sourceId, mangaId: manga.id)
             
-            for chapter in chapters {
+            // Filter chapters that are downloaded using async loop
+            var downloadedChapters: [Chapter] = []
+            for chapter in allChapters {
+                if await DownloadManager.shared.isChapterDownloaded(chapter: chapter) {
+                    downloadedChapters.append(chapter)
+                }
+            }
+            
+            for chapter in downloadedChapters {
                 let chapterKey = "\(chapter.sourceId)_\(chapter.mangaId)_\(chapter.id)"
                 if !processingQueue.contains(chapterKey) {
                     processingQueue.insert(chapterKey)
@@ -297,10 +304,6 @@ private extension FileManager {
 }
 
 private extension URL {
-    var exists: Bool {
-        FileManager.default.fileExists(atPath: path)
-    }
-    
     var directorySize: Int64 {
         guard let enumerator = FileManager.default.enumerator(at: self, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles]) else {
             return 0
