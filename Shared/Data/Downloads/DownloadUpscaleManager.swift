@@ -219,17 +219,38 @@ actor DownloadUpscaleManager {
                 }
             }
             
-            // Save upscaled image with compression to reduce file size
+            // Save upscaled image with aggressive compression to reduce file size
             let upscaledImage = UIImage(cgImage: upscaledCGImage)
             
-            // Choose format and compression based on original file extension
+            // Smart format selection for maximum compression:
+            // - Convert PNG to JPEG for much better compression (PNG upscales are HUGE!)
+            // - Keep JPEG as JPEG with optimized compression
+            // - Use high quality (0.85) to maintain visual quality while reducing size significantly
+            
+            let originalExtension = imageURL.pathExtension.lowercased()
+            let useJPEG = originalExtension == "png" || originalExtension == "jpg" || originalExtension == "jpeg"
+            
             let imageData: Data?
-            if imageURL.pathExtension.lowercased() == "png" {
-                // For PNG, use moderate compression
-                imageData = upscaledImage.pngData()
-            } else {
-                // For JPEG, use high quality compression (0.85 instead of 0.95 to reduce size)
+            let finalImageURL: URL
+            
+            if useJPEG {
+                // Convert to JPEG for maximum compression - this can reduce file size by 70-80%!
                 imageData = upscaledImage.jpegData(compressionQuality: 0.85)
+                
+                // Change extension to .jpg if original was .png
+                if originalExtension == "png" {
+                    finalImageURL = imageURL.deletingPathExtension().appendingPathExtension("jpg")
+                    // Remove original PNG file after successful conversion
+                    if imageURL.exists {
+                        try? FileManager.default.removeItem(at: imageURL)
+                    }
+                } else {
+                    finalImageURL = imageURL
+                }
+            } else {
+                // Keep original format for other formats (webp, gif, etc.)
+                imageData = originalExtension == "png" ? upscaledImage.pngData() : upscaledImage.jpegData(compressionQuality: 0.85)
+                finalImageURL = imageURL
             }
             
             guard let data = imageData else {
@@ -237,12 +258,13 @@ actor DownloadUpscaleManager {
                 return false
             }
             
-            try data.write(to: imageURL)
+            try data.write(to: finalImageURL)
             
             // Save metadata to indicate this image was upscaled
-            try await saveUpscaleMetadata(for: imageURL, originalSize: fileData.count, upscaledSize: data.count)
+            try await saveUpscaleMetadata(for: finalImageURL, originalSize: fileData.count, upscaledSize: data.count)
             
-            LogManager.logger.debug("Successfully upscaled: \(imageURL.lastPathComponent) (size: \(ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .binary)))")
+            let compressionRatio = Double(fileData.count) / Double(data.count)
+            LogManager.logger.debug("Successfully upscaled: \(finalImageURL.lastPathComponent) (original: \(ByteCountFormatter.string(fromByteCount: Int64(fileData.count), countStyle: .binary)) → final: \(ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .binary)), compression: \(String(format: "%.1fx", compressionRatio)))")
             return true
             
         } catch {
